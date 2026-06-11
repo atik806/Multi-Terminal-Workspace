@@ -1,3 +1,5 @@
+import time
+
 import gi
 
 gi.require_version("Gtk", "4.0")
@@ -177,63 +179,161 @@ class MultiTerminalWindow(Adw.ApplicationWindow):
         parent.append(self.terminal_revealer)
 
         term_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        term_box.set_margin_start(12)
-        term_box.set_margin_end(12)
-        term_box.set_margin_bottom(4)
+        term_box.add_css_class("terminal-panel")
         self.terminal_revealer.set_child(term_box)
 
-        header_box = Gtk.Box(spacing=8)
-        header_box.set_margin_top(4)
-        header_box.set_margin_bottom(4)
+        tab_scroll = Gtk.ScrolledWindow()
+        tab_scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
+        tab_scroll.set_propagate_natural_height(True)
 
-        self.list_count_label = Gtk.Label(label="Running (0)")
-        self.list_count_label.add_css_class("heading")
-        header_box.append(self.list_count_label)
+        self.tab_box = Gtk.Box(spacing=0)
+        self.tab_box.add_css_class("terminal-tab-box")
+        tab_scroll.set_child(self.tab_box)
+        term_box.append(tab_scroll)
 
-        spacer = Gtk.Label()
-        spacer.set_hexpand(True)
-        header_box.append(spacer)
+        display_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        display_box.add_css_class("terminal-display")
+
+        self.term_info_label = Gtk.Label(label="")
+        self.term_info_label.set_halign(Gtk.Align.START)
+        self.term_info_label.set_valign(Gtk.Align.START)
+        self.term_info_label.set_margin_start(16)
+        self.term_info_label.set_margin_end(16)
+        self.term_info_label.set_margin_top(12)
+        self.term_info_label.set_margin_bottom(12)
+        self.term_info_label.set_selectable(True)
+        display_box.append(self.term_info_label)
+
+        term_box.append(display_box)
+
+        status_bar = Gtk.Box(spacing=8)
+        status_bar.add_css_class("terminal-status")
+
+        self.list_count_label = Gtk.Label(label="● 0 running")
+        self.list_count_label.set_halign(Gtk.Align.START)
+        self.list_count_label.set_hexpand(True)
+        status_bar.append(self.list_count_label)
 
         self.close_all_btn = Gtk.Button(label="Close All")
-        self.close_all_btn.add_css_class("destructive-action")
-        self.close_all_btn.add_css_class("circular")
+        self.close_all_btn.add_css_class("terminal-close-all")
         self.close_all_btn.connect("clicked", lambda _: self.manager.close_all())
         self.close_all_btn.set_sensitive(False)
-        header_box.append(self.close_all_btn)
-        term_box.append(header_box)
+        status_bar.append(self.close_all_btn)
 
-        scrolled = Gtk.ScrolledWindow()
-        scrolled.set_max_content_height(180)
-        scrolled.set_propagate_natural_height(True)
+        term_box.append(status_bar)
 
-        self.terminal_list = Gtk.ListBox()
-        self.terminal_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
-        self.terminal_list.add_css_class("boxed-list")
-        self.terminal_list.connect("row-activated", self._on_row_activated)
-        scrolled.set_child(self.terminal_list)
-        term_box.append(scrolled)
+        self._load_terminal_css()
 
-        self._css_dot = Gtk.CssProvider()
-        self._css_dot.load_from_data(b"""
-            .status-dot { font-size: 10px; margin-right: 6px; }
-            .status-running { color: #a6e3a1; }
-            .status-stopped { color: #f38ba8; }
-            .term-pid { font-size: 12px; color: #6c7086;
-                         font-family: monospace; }
-            .row-close-btn { background: transparent; color: #f38ba8;
-                             border: none; border-radius: 4px;
-                             padding: 4px 10px; font-weight: bold;
-                             font-size: 14px; }
-            .row-close-btn:hover { background: alpha(currentColor, 0.1); }
-            .popover-menu button { padding: 8px 20px; border: none;
-                                   background: transparent;
-                                    font-size: 14px;
-                                   border-radius: 0; }
-            .popover-menu button:hover { background: alpha(currentColor, 0.1); }
+    def _load_terminal_css(self):
+        css = Gtk.CssProvider()
+        css.load_from_data(b"""
+            .terminal-panel {
+                background: #0d0d0f;
+                border-top: 1px solid #1a1a1e;
+            }
+            .terminal-tab-box {
+                background: #0a0a0c;
+                padding: 4px 4px 0 4px;
+            }
+            .terminal-tab {
+                background: #16161a;
+                border: 1px solid #1e1e24;
+                border-bottom: none;
+                border-radius: 6px 6px 0 0;
+                padding: 4px 10px;
+                margin: 0 1px;
+                font-family: monospace;
+                font-size: 12px;
+                color: #cdd6f4;
+                min-height: 24px;
+            }
+            .terminal-tab:hover {
+                background: #1c1c22;
+            }
+            .terminal-tab-running {
+                border-left: 2px solid #a6e3a1;
+            }
+            .terminal-tab-stopped {
+                border-left: 2px solid #f38ba8;
+                opacity: 0.6;
+            }
+            .terminal-tab-close {
+                background: transparent;
+                color: #6c7086;
+                border: none;
+                border-radius: 3px;
+                padding: 0 4px;
+                margin-left: 6px;
+                font-size: 11px;
+                min-width: 16px;
+                min-height: 16px;
+            }
+            .terminal-tab-close:hover {
+                background: #2a2a32;
+                color: #f38ba8;
+            }
+            .terminal-display {
+                background: #0d0d0f;
+                padding: 0;
+                min-height: 80px;
+            }
+            .terminal-display label {
+                font-family: "JetBrains Mono", "Fira Code", "Cascadia Code",
+                             "Source Code Pro", "Ubuntu Mono", monospace;
+                font-size: 13px;
+                color: #cdd6f4;
+            }
+            .terminal-status {
+                background: #0a0a0c;
+                border-top: 1px solid #1a1a1e;
+                padding: 4px 12px;
+                font-family: monospace;
+                font-size: 11px;
+                color: #585b6e;
+            }
+            .terminal-status label {
+                font-family: monospace;
+                font-size: 11px;
+                color: #585b6e;
+            }
+            .terminal-close-all {
+                background: transparent;
+                color: #585b6e;
+                border: 1px solid #1e1e24;
+                border-radius: 4px;
+                padding: 2px 10px;
+                font-size: 11px;
+                font-family: monospace;
+                min-height: 0;
+            }
+            .terminal-close-all:hover {
+                background: #1c1c22;
+                color: #f38ba8;
+                border-color: #f38ba8;
+            }
+            .terminal-popover {
+                background: #16161a;
+                border: 1px solid #2a2a32;
+                border-radius: 8px;
+                padding: 4px;
+            }
+            .terminal-popover button {
+                background: transparent;
+                color: #cdd6f4;
+                border: none;
+                border-radius: 4px;
+                padding: 6px 20px;
+                font-size: 13px;
+                font-family: monospace;
+                min-height: 0;
+            }
+            .terminal-popover button:hover {
+                background: #2a2a32;
+            }
         """)
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(),
-            self._css_dot,
+            css,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
         )
 
@@ -359,76 +459,81 @@ class MultiTerminalWindow(Adw.ApplicationWindow):
                 self.manager.add(info)
 
     def _on_terminals_changed(self, terminals):
-        child = self.terminal_list.get_first_child()
+        child = self.tab_box.get_first_child()
         while child:
             next_child = child.get_next_sibling()
-            self.terminal_list.remove(child)
+            self.tab_box.remove(child)
             child = next_child
 
         for info in terminals:
-            row = self._build_terminal_row(info)
-            self.terminal_list.append(row)
+            tab = self._build_terminal_tab(info)
+            self.tab_box.append(tab)
 
         count = len(terminals)
-        self.list_count_label.set_label(f"Running ({count})")
+        running = sum(1 for t in terminals if t.status == "running")
+        self.list_count_label.set_label(f"● {running} running  |  {count} total")
         self.close_all_btn.set_sensitive(count > 0)
         self.terminal_revealer.set_reveal_child(count > 0)
 
-    def _build_terminal_row(self, info):
-        row = Gtk.ListBoxRow()
-        row._terminal_info = info
-        row.set_activatable(True)
+        if terminals:
+            self._show_terminal_info(terminals[0])
 
-        box = Gtk.Box(spacing=8)
-        box.set_margin_start(8)
-        box.set_margin_end(8)
-        box.set_margin_top(6)
-        box.set_margin_bottom(6)
-        box.set_hexpand(True)
+    def _build_terminal_tab(self, info):
+        box = Gtk.Box(spacing=4)
+        box.add_css_class("terminal-tab")
+        box.add_css_class(
+            "terminal-tab-running" if info.status == "running"
+            else "terminal-tab-stopped"
+        )
 
         dot = Gtk.Label(label="●")
-        dot.add_css_class("status-dot")
-        dot.add_css_class("status-running" if info.status == "running"
-                          else "status-stopped")
+        dot.set_margin_right(2)
         box.append(dot)
 
         name = Gtk.Label(label=info.display_name)
-        name.set_halign(Gtk.Align.START)
         name.set_hexpand(True)
-        name.set_xalign(0.0)
+        name.set_halign(Gtk.Align.START)
         box.append(name)
 
-        pid_label = Gtk.Label(label=str(info.pid))
-        pid_label.add_css_class("term-pid")
-        box.append(pid_label)
+        pid_l = Gtk.Label(label=str(info.pid))
+        pid_l.add_css_class("terminal-tab-close")
+        box.append(pid_l)
 
-        close_btn = Gtk.Button(label="✕")
-        close_btn.add_css_class("row-close-btn")
+        close_btn = Gtk.Button(label="×")
+        close_btn.add_css_class("terminal-tab-close")
         close_btn.set_valign(Gtk.Align.CENTER)
         info_ref = info
         close_btn.connect("clicked",
                           lambda _, i=info_ref: self.manager.close_terminal(i))
         box.append(close_btn)
 
-        row.set_child(box)
-
-        gesture = Gtk.GestureClick(button=3)
+        left_click = Gtk.GestureClick(button=1)
         info_ref2 = info
-        gesture.connect("pressed", self._on_row_right_click, row, info_ref2)
-        row.add_controller(gesture)
+        left_click.connect("pressed", self._on_tab_click, box, info_ref2)
+        box.add_controller(left_click)
 
-        return row
+        right_click = Gtk.GestureClick(button=3)
+        info_ref3 = info
+        right_click.connect("pressed", self._on_tab_right_click, box, info_ref3)
+        box.add_controller(right_click)
 
-    def _on_row_right_click(self, gesture, n_press, x, y, row, info):
-        self.terminal_list.select_row(row)
-        self._show_context_menu(row, info, int(x), int(y))
+        return box
 
-    def _show_context_menu(self, row, info, x, y):
+    def _on_tab_click(self, gesture, n_press, x, y, tab, info):
+        self._show_terminal_info(info)
+        if n_press == 2 and info.status == "running":
+            self.manager.focus_terminal(info)
+
+    def _on_tab_right_click(self, gesture, n_press, x, y, tab, info):
+        self._show_terminal_info(info)
+        self._show_tab_menu(tab, info)
+
+    def _show_tab_menu(self, tab, info):
         popover = Gtk.Popover()
-        popover.set_parent(row)
+        popover.set_parent(tab)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        vbox.add_css_class("popover-menu")
+        vbox.add_css_class("terminal-popover")
 
         items = [
             ("Close", lambda: self.manager.close_terminal(info)),
@@ -445,17 +550,31 @@ class MultiTerminalWindow(Adw.ApplicationWindow):
 
         popover.set_child(vbox)
         rect = Gdk.Rectangle()
-        rect.x = x
-        rect.y = y
+        rect.x = int(x)
+        rect.y = int(y)
         rect.width = 1
         rect.height = 1
         popover.set_pointing_to(rect)
         popover.popup()
 
-    def _on_row_activated(self, _listbox, row):
-        info = getattr(row, "_terminal_info", None)
-        if info and info.status == "running":
-            self.manager.focus_terminal(info)
+    def _show_terminal_info(self, info):
+        self._selected_info = info
+        lines = []
+        lines.append(f"\u250c\u2500\u2500 {info.display_name}")
+        lines.append(f"\u2502 PID:      {info.pid}")
+        lines.append(f"\u2502 Mode:     {info.mode}")
+        lines.append(f"\u2502 Status:   {'● running' if info.status == 'running' else '● stopped'}")
+        lines.append(f"\u2502 Emulator: {info.emulator}")
+        if info.session_name:
+            lines.append(f"\u2502 Session:  {info.session_name}")
+        if info.pane_id:
+            lines.append(f"\u2502 Pane ID:  {info.pane_id}")
+        if info.index is not None and info.mode != "tmux":
+            lines.append(f"\u2502 Index:    #{info.index + 1}")
+        elapsed = int(time.time() - info.launched_at)
+        lines.append(f"\u2502 Uptime:   {elapsed}s")
+        lines.append(f"\u2514\u2500\u2500 right-click for options")
+        self.term_info_label.set_label("\n".join(lines))
 
     def _copy_pid(self, pid):
         display = Gdk.Display.get_default()
@@ -465,6 +584,8 @@ class MultiTerminalWindow(Adw.ApplicationWindow):
 
     def _poll_statuses(self):
         self.manager.update_statuses()
+        if hasattr(self, "_selected_info") and self._selected_info:
+            self._show_terminal_info(self._selected_info)
         return True
 
     def _show_toast(self, msg):
