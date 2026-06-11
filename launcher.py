@@ -81,6 +81,7 @@ def build_tmux_script(session_name: str, count: int) -> str:
     for _ in range(count - 1):
         lines.append(f"tmux split-window -t {session_name}")
     lines.append(f"tmux select-layout -t {session_name} tiled 2>/dev/null")
+    lines.append("tmux set-option -g mouse on")
     lines.append(f"tmux set-option -t {session_name} remain-on-exit off 2>/dev/null")
     lines.append(f"tmux attach -t {session_name}")
     lines.append(
