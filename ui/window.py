@@ -185,10 +185,14 @@ class MultiTerminalWindow(Adw.ApplicationWindow):
         term_box.add_css_class("terminal-panel")
         self.terminal_revealer.set_child(term_box)
 
+        tab_scroll = Gtk.ScrolledWindow()
+        tab_scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
+        tab_scroll.set_propagate_natural_height(True)
+
         self.tab_box = Gtk.Box(spacing=0)
         self.tab_box.add_css_class("terminal-tab-box")
-        self.tab_box.set_hexpand(True)
-        term_box.append(self.tab_box)
+        tab_scroll.set_child(self.tab_box)
+        term_box.append(tab_scroll)
 
         display_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         display_box.add_css_class("terminal-display")
@@ -232,7 +236,7 @@ class MultiTerminalWindow(Adw.ApplicationWindow):
             }
             .terminal-tab-box {
                 background: #0a0a0c;
-                padding: 2px 4px 0 4px;
+                padding: 2px 20px 0 4px;
                 min-height: 32px;
             }
             .terminal-tab {
