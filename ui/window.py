@@ -185,17 +185,23 @@ class MultiTerminalWindow(Adw.ApplicationWindow):
         term_box.add_css_class("terminal-panel")
         self.terminal_revealer.set_child(term_box)
 
-        tab_scroll = Gtk.ScrolledWindow()
-        tab_scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
-        tab_scroll.set_propagate_natural_height(True)
+        body_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        body_box.set_vexpand(True)
+        term_box.append(body_box)
 
-        self.tab_box = Gtk.Box(spacing=0)
+        tab_scroll = Gtk.ScrolledWindow()
+        tab_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        tab_scroll.set_size_request(200, -1)
+
+        self.tab_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.tab_box.add_css_class("terminal-tab-box")
         tab_scroll.set_child(self.tab_box)
-        term_box.append(tab_scroll)
+        body_box.append(tab_scroll)
 
         display_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         display_box.add_css_class("terminal-display")
+        display_box.set_hexpand(True)
+        display_box.set_vexpand(True)
 
         self.term_info_label = Gtk.Label(label="")
         self.term_info_label.set_halign(Gtk.Align.START)
@@ -207,7 +213,7 @@ class MultiTerminalWindow(Adw.ApplicationWindow):
         self.term_info_label.set_selectable(True)
         display_box.append(self.term_info_label)
 
-        term_box.append(display_box)
+        body_box.append(display_box)
 
         status_bar = Gtk.Box(spacing=8)
         status_bar.add_css_class("terminal-status")
@@ -236,42 +242,42 @@ class MultiTerminalWindow(Adw.ApplicationWindow):
             }
             .terminal-tab-box {
                 background: #0a0a0c;
-                padding: 2px 20px 0 4px;
-                min-height: 32px;
+                padding: 4px 0;
+                min-width: 180px;
             }
             .terminal-tab {
-                background: #16161a;
-                border: 1px solid #1e1e24;
-                border-bottom: none;
-                border-radius: 6px 6px 0 0;
-                padding: 2px 8px;
-                margin: 0 1px;
+                background: transparent;
+                border: none;
+                border-radius: 0;
+                padding: 6px 10px 6px 12px;
+                margin: 1px 0;
                 font-family: monospace;
                 font-size: 12px;
-                color: #cdd6f4;
-                min-height: 26px;
+                color: #a6adc8;
+                min-height: 28px;
             }
             .terminal-tab:hover {
-                background: #1c1c22;
+                background: #16161a;
             }
             .terminal-tab-running {
-                border-left: 2px solid #a6e3a1;
+                border-left: 3px solid #a6e3a1;
+                color: #cdd6f4;
             }
             .terminal-tab-stopped {
-                border-left: 2px solid #f38ba8;
-                opacity: 0.6;
+                border-left: 3px solid #45475a;
+                opacity: 0.5;
             }
             .terminal-tab-close {
                 background: transparent;
-                color: #6c7086;
+                color: #585b6e;
                 border: none;
                 border-radius: 4px;
-                padding: 0 6px;
+                padding: 0 4px;
                 margin-left: 4px;
                 font-size: 14px;
                 font-weight: bold;
-                min-width: 20px;
-                min-height: 20px;
+                min-width: 22px;
+                min-height: 22px;
             }
             .terminal-tab-close:hover {
                 background: #2a2a32;
@@ -281,6 +287,7 @@ class MultiTerminalWindow(Adw.ApplicationWindow):
                 background: #0d0d0f;
                 padding: 0;
                 min-height: 80px;
+                border-left: 1px solid #1a1a1e;
             }
             .terminal-display label {
                 font-family: "JetBrains Mono", "Fira Code", "Cascadia Code",
