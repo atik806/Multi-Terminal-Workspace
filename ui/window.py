@@ -487,7 +487,7 @@ class MultiTerminalWindow(Adw.ApplicationWindow):
         )
 
         dot = Gtk.Label(label="●")
-        dot.set_margin_right(2)
+        dot.set_margin_end(2)
         box.append(dot)
 
         name = Gtk.Label(label=info.display_name)

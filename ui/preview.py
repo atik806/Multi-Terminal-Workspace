@@ -3,10 +3,12 @@ import math
 import gi
 
 gi.require_version("Gtk", "4.0")
+gi.require_version("Gdk", "4.0")
 gi.require_version("Adw", "1")
+gi.require_version("cairo", "1.0")
 gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
-from gi.repository import Gtk, Gdk, GLib, Pango, PangoCairo
+from gi.repository import Gtk, Gdk, GLib, cairo, Pango, PangoCairo
 
 
 class GridPreview(Gtk.DrawingArea):
