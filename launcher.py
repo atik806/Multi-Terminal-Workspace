@@ -146,6 +146,7 @@ def launch_terminals(
                 on_status(f"Error: {e}")
             return 0
 
+    term_name = get_terminal_real_name(cmd_base[0])
     launched = 0
     display = Gdk.Display.get_default()
 
@@ -167,6 +168,7 @@ def launch_terminals(
     positions = compute_grid(count) if auto_tile else [(0, 0, 1, 1)] * count
 
     for idx in range(count):
+        cmd = list(cmd_base)
         pos = positions[idx]
         col, row, cols, rows = pos
         cell_w = screen_w // cols
@@ -176,7 +178,6 @@ def launch_terminals(
         win_w = cell_w
         win_h = cell_h
 
-        cmd = list(cmd_base)
         flags = get_geometry_flags(cmd_base[0], x, y, win_w, win_h)
         cmd.extend(flags)
 
@@ -214,7 +215,7 @@ def compute_grid(count: int):
 
 def get_geometry_flags(cmd_base: str, x: int, y: int, w: int, h: int) -> list[str]:
     name = get_terminal_real_name(cmd_base)
-    if name in ("ptyxis", "gnome-terminal", "terminator", "lxterminal"):
+    if name in ("gnome-terminal", "terminator", "lxterminal"):
         return [f"--geometry={w}x{h}+{x}+{y}"]
     elif name in ("xterm", "urxvt"):
         return ["-geometry", f"{w}x{h}+{x}+{y}"]
