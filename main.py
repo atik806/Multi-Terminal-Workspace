@@ -4,12 +4,13 @@ import sys
 import gi
 
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk
+gi.require_version("Adw", "1")
+from gi.repository import Gtk, Adw
 
 from ui.window import MultiTerminalWindow
 
 
-class MultiTerminalApp(Gtk.Application):
+class MultiTerminalApp(Adw.Application):
     def __init__(self):
         super().__init__(
             application_id="com.multi-terminal.launcher",

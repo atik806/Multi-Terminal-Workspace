@@ -3,11 +3,25 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
+from dataclasses import dataclass, field
 
 import gi
 
 gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk
+
+
+@dataclass
+class LaunchResult:
+    success: bool
+    count: int
+    mode: str
+    emulator: str
+    pids: list[int] = field(default_factory=list)
+    session_name: str | None = None
+    panes: list[dict] = field(default_factory=list)
+    error: str | None = None
 
 TERMINAL_EMULATORS = [
     ("ptyxis", ["ptyxis"]),
@@ -122,12 +136,14 @@ def launch_terminals(
     auto_tile: bool = True,
     use_tmux: bool = True,
     on_status=None,
-) -> int:
+) -> LaunchResult:
     cmd_base = resolve_emulator(emulator_name)
     if cmd_base is None:
+        msg = f"Terminal '{emulator_name}' not found"
         if on_status:
-            on_status(f"Terminal '{emulator_name}' not found")
-        return 0
+            on_status(msg)
+        return LaunchResult(success=False, count=0, mode="standalone",
+                            emulator=emulator_name, error=msg)
 
     if use_tmux and tmux_available():
         session_name = f"multi-terminal-{os.getpid()}"
@@ -144,20 +160,47 @@ def launch_terminals(
         cmd = [term_bin] + get_exec_flags(term_bin, script_path, maximize=True)
 
         try:
-            subprocess.Popen(
+            proc = subprocess.Popen(
                 cmd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
-            return count
         except (FileNotFoundError, OSError) as e:
             os.unlink(script_path)
             if on_status:
                 on_status(f"Error: {e}")
-            return 0
+            return LaunchResult(success=False, count=0, mode="tmux",
+                                emulator=emulator_name, error=str(e))
+
+        time.sleep(0.5)
+
+        panes = []
+        result = subprocess.run(
+            ["tmux", "list-panes", "-t", session_name,
+             "-F", "#{pane_id} #{pane_index} #{pane_pid}"],
+            capture_output=True, text=True,
+        )
+        if result.returncode == 0:
+            for line in result.stdout.strip().splitlines():
+                parts = line.split()
+                if len(parts) >= 3:
+                    panes.append({
+                        "pane_id": parts[0],
+                        "index": int(parts[1]),
+                        "pid": int(parts[2]),
+                    })
+
+        return LaunchResult(
+            success=True, count=count, mode="tmux",
+            emulator=emulator_name,
+            pids=[proc.pid],
+            session_name=session_name,
+            panes=panes,
+        )
 
     term_name = get_terminal_real_name(cmd_base[0])
     launched = 0
+    launched_pids = []
     display = Gdk.Display.get_default()
 
     if auto_tile and display:
@@ -194,12 +237,13 @@ def launch_terminals(
             cmd.extend(flags)
 
         try:
-            subprocess.Popen(
+            proc = subprocess.Popen(
                 cmd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
             launched += 1
+            launched_pids.append(proc.pid)
         except FileNotFoundError:
             if on_status:
                 on_status(f"Command not found: {cmd_base[0]}")
@@ -209,7 +253,10 @@ def launch_terminals(
                 on_status(f"Error: {e}")
             break
 
-    return launched
+    return LaunchResult(
+        success=launched > 0, count=launched, mode="standalone",
+        emulator=emulator_name, pids=launched_pids,
+    )
 
 
 def compute_grid(count: int):
