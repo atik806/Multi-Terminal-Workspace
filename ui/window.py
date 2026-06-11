@@ -88,6 +88,9 @@ class MultiTerminalWindow(Adw.ApplicationWindow):
         page = Adw.PreferencesPage()
         scroll.set_child(page)
 
+        self._terminal_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        main_box.append(self._terminal_container)
+
         config_group = Adw.PreferencesGroup()
         config_group.set_title("Configuration")
         config_group.set_description("Choose terminal count and emulator")
@@ -148,7 +151,7 @@ class MultiTerminalWindow(Adw.ApplicationWindow):
         self.tmux_switch.connect("notify::active", self._on_config_changed)
         advanced_group.add(self.tmux_switch)
 
-        self._build_terminal_section(content_box)
+        self._build_terminal_section(self._terminal_container)
 
         action_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         action_bar.set_margin_top(12)
@@ -182,14 +185,10 @@ class MultiTerminalWindow(Adw.ApplicationWindow):
         term_box.add_css_class("terminal-panel")
         self.terminal_revealer.set_child(term_box)
 
-        tab_scroll = Gtk.ScrolledWindow()
-        tab_scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
-        tab_scroll.set_propagate_natural_height(True)
-
         self.tab_box = Gtk.Box(spacing=0)
         self.tab_box.add_css_class("terminal-tab-box")
-        tab_scroll.set_child(self.tab_box)
-        term_box.append(tab_scroll)
+        self.tab_box.set_hexpand(True)
+        term_box.append(self.tab_box)
 
         display_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         display_box.add_css_class("terminal-display")
@@ -233,19 +232,20 @@ class MultiTerminalWindow(Adw.ApplicationWindow):
             }
             .terminal-tab-box {
                 background: #0a0a0c;
-                padding: 4px 4px 0 4px;
+                padding: 2px 4px 0 4px;
+                min-height: 32px;
             }
             .terminal-tab {
                 background: #16161a;
                 border: 1px solid #1e1e24;
                 border-bottom: none;
                 border-radius: 6px 6px 0 0;
-                padding: 4px 10px;
+                padding: 2px 8px;
                 margin: 0 1px;
                 font-family: monospace;
                 font-size: 12px;
                 color: #cdd6f4;
-                min-height: 24px;
+                min-height: 26px;
             }
             .terminal-tab:hover {
                 background: #1c1c22;
@@ -261,12 +261,13 @@ class MultiTerminalWindow(Adw.ApplicationWindow):
                 background: transparent;
                 color: #6c7086;
                 border: none;
-                border-radius: 3px;
-                padding: 0 4px;
-                margin-left: 6px;
-                font-size: 11px;
-                min-width: 16px;
-                min-height: 16px;
+                border-radius: 4px;
+                padding: 0 6px;
+                margin-left: 4px;
+                font-size: 14px;
+                font-weight: bold;
+                min-width: 20px;
+                min-height: 20px;
             }
             .terminal-tab-close:hover {
                 background: #2a2a32;
