@@ -77,23 +77,32 @@ def build_tmux_script(session_name: str, count: int) -> str:
     lines = [
         "#!/bin/bash",
         f"tmux new-session -d -s {session_name}",
+        f"tmux set-option -t {session_name} mouse on",
     ]
-    for _ in range(count - 1):
-        lines.append(f"tmux split-window -t {session_name}")
+    lines.append(
+        f'while [ "$(tmux list-panes -t {session_name} | wc -l)" -lt {count} ]; do'
+    )
+    lines.append(
+        f'  target=$(tmux list-panes -t {session_name} -F "#{{pane_index}} #{{pane_height}}" '
+        "| sort -k2 -rn | head -1 | cut -d' ' -f1)"
+    )
+    lines.append(f"  tmux split-window -t {session_name}:0.\"$target\"")
+    lines.append("done")
     lines.append(f"tmux select-layout -t {session_name} tiled 2>/dev/null")
-    lines.append("tmux set-option -g mouse on")
     lines.append(f"tmux set-option -t {session_name} remain-on-exit off 2>/dev/null")
     lines.append(f"tmux attach -t {session_name}")
-    lines.append(
-        f"tmux kill-session -t {session_name} 2>/dev/null"
-    )
+    lines.append(f"tmux kill-session -t {session_name} 2>/dev/null")
     return "\n".join(lines) + "\n"
 
 
-def get_exec_flags(term_bin: str, command: str) -> list[str]:
+def get_exec_flags(term_bin: str, command: str, maximize: bool = False) -> list[str]:
     name = os.path.basename(resolve_symlinks(term_bin))
     if name == "ptyxis":
-        return ["-x", command]
+        flags = []
+        if maximize:
+            flags.append("--maximize")
+        flags.extend(["-x", command])
+        return flags
     elif name in ("gnome-terminal",):
         return ["--", "bash", "-c", command]
     elif name in ("xterm", "urxvt"):
@@ -132,7 +141,7 @@ def launch_terminals(
         os.chmod(script_path, 0o755)
 
         term_bin = cmd_base[0]
-        cmd = [term_bin] + get_exec_flags(term_bin, script_path)
+        cmd = [term_bin] + get_exec_flags(term_bin, script_path, maximize=True)
 
         try:
             subprocess.Popen(
@@ -170,17 +179,19 @@ def launch_terminals(
 
     for idx in range(count):
         cmd = list(cmd_base)
-        pos = positions[idx]
-        col, row, cols, rows = pos
-        cell_w = screen_w // cols
-        cell_h = screen_h // rows
-        x = col * cell_w
-        y = row * cell_h
-        win_w = cell_w
-        win_h = cell_h
-
-        flags = get_geometry_flags(cmd_base[0], x, y, win_w, win_h)
-        cmd.extend(flags)
+        if term_name == "ptyxis":
+            cmd.append("--new-window")
+        else:
+            pos = positions[idx]
+            col, row, cols, rows = pos
+            cell_w = screen_w // cols
+            cell_h = screen_h // rows
+            x = col * cell_w
+            y = row * cell_h
+            win_w = cell_w
+            win_h = cell_h
+            flags = get_geometry_flags(cmd_base[0], x, y, win_w, win_h)
+            cmd.extend(flags)
 
         try:
             subprocess.Popen(
