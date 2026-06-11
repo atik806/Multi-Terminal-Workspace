@@ -9,6 +9,7 @@ DEFAULT_CONFIG = {
     "terminal_count": 4,
     "terminal_emulator": "gnome-terminal",
     "auto_tile": True,
+    "use_tmux": True,
 }
 
 

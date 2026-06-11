@@ -74,15 +74,13 @@ class MultiTerminalWindow(Gtk.ApplicationWindow):
         self.emulator_combo = Gtk.ComboBoxText()
         self.available = get_available_emulators()
         selected_idx = 0
+        if not self.available:
+            self.available = [("System Default", "")]
         for i, (label, _binary) in enumerate(self.available):
             self.emulator_combo.append_text(label)
             if label == self.config["terminal_emulator"]:
                 selected_idx = i
-        if self.available:
-            self.emulator_combo.set_active(selected_idx)
-        else:
-            self.emulator_combo.append_text("(none available)")
-            self.emulator_combo.set_active(0)
+        self.emulator_combo.set_active(selected_idx)
         emu_box.append(emu_label)
         emu_box.append(self.emulator_combo)
         vbox.append(emu_box)
@@ -104,12 +102,9 @@ class MultiTerminalWindow(Gtk.ApplicationWindow):
 
     def on_launch(self, _widget=None):
         count = int(self.spin.get_value())
-        if not self.available:
-            self.status_label.set_label("No terminal emulator found!")
-            return
         idx = self.emulator_combo.get_active()
         if idx < 0:
-            return
+            idx = 0
         emulator_name = self.available[idx][0]
 
         self.config["terminal_count"] = count
@@ -119,14 +114,19 @@ class MultiTerminalWindow(Gtk.ApplicationWindow):
         self.launch_btn.set_sensitive(False)
         self.status_label.set_label("Launching...")
 
+        use_tmux = self.config.get("use_tmux", True) and count > 1
         launched = launch_terminals(
             count, emulator_name,
             auto_tile=self.config.get("auto_tile", True),
+            use_tmux=use_tmux,
             on_status=lambda msg: GLib.idle_add(self.status_label.set_label, msg),
         )
 
         if launched:
-            self.status_label.set_label(f"Launched {launched} terminal{'s' if launched != 1 else ''}")
+            if use_tmux and launched > 1:
+                self.status_label.set_label(f"Opened {launched} terminals in tmux grid")
+            else:
+                self.status_label.set_label(f"Launched {launched} terminal{'s' if launched != 1 else ''}")
         self.launch_btn.set_sensitive(True)
 
     def on_ctrl_l(self, _widget, _param=None):
